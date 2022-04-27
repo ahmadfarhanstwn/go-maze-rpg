@@ -5,33 +5,21 @@ type Monster struct {
 }
 
 func NewRat(pos Pos) *Monster {
-	monster := &Monster{}
-	monster.Pos = pos
-	monster.Rune = 'R'
-	monster.Name = "Rat"
-	monster.Hp = 10
-	monster.Strength = 2
-	monster.Speed = 15
-	monster.Ap = 0
-	return monster
+	return &Monster{Character{Entity{pos, 'R', "Rat"},10,2,15,0,10}}
 }
 
 func NewSpider(pos Pos) *Monster {
-	monster := &Monster{}
-	monster.Pos = pos
-	monster.Rune = 'S'
-	monster.Name = "Spider"
-	monster.Hp = 15
-	monster.Strength = 5
-	monster.Speed = 2
-	monster.Ap = 0
-	return monster
+	return &Monster{Character{Entity{pos, 'S', "Spider"},15,5,2,0,10}}
 }
 
 func (m *Monster) Update(level *Level) {
 	m.Ap += m.Speed
 	playerPos := level.Player.Pos
 	path := level.aStar(m.Pos, playerPos)
+	if (len(path) == 0) {
+		m.pass()
+		return
+	}
 	apInt := int(m.Ap)
 	for i := 1; i <= apInt; i++ {
 		if i < len(path) {
@@ -41,15 +29,21 @@ func (m *Monster) Update(level *Level) {
 	}
 }
 
+func (m *Monster) pass() {
+	m.Ap -= m.Speed
+}
+
 func (m *Monster) Move(to Pos, level *Level) {
 	_, exist := level.Monsters[to]
 	if !exist && to != level.Player.Pos {
 		delete(level.Monsters, m.Pos)
 		level.Monsters[to] = m
 		m.Pos = to
-	} else {
-		Attack(m, level.Player)
+	} else if to == level.Player.Pos {
+		level.Attack(&m.Character, &level.Player.Character)
+		level.addEvent(m.Name + "attack player")
 		if m.Hp <= 0 {
+			level.addEvent("Player killed" + m.Name)
 			delete(level.Monsters, m.Pos)
 		}
 		if level.Player.Hp <= 0 {
