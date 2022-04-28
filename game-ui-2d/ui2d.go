@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/ahmadfarhanstwn/rpg/game-logic"
+	"github.com/veandco/go-sdl2/mix"
 	"github.com/veandco/go-sdl2/sdl"
 	"github.com/veandco/go-sdl2/ttf"
 )
@@ -21,7 +22,20 @@ const (
 	largeSize
 )
 
+type sounds struct {
+	footStep []*mix.Chunk 
+	openDoor []*mix.Chunk
+	attackingSound []*mix.Chunk
+}
+
+func playRandomSounds(chunks []*mix.Chunk, volume int) {
+	r := rand.Intn(len(chunks))
+	chunks[r].Volume(volume)
+	chunks[r].Play(-1,0)
+}
+
 type ui struct {
+	sounds
 	winWidth int
 	winHeight int
 	renderer *sdl.Renderer
@@ -101,6 +115,44 @@ func NewUi(levelChannel chan *game.Level, inputChannel chan *game.Input) *ui {
 	ui.eventBackground = ui.GetSinglePixelTex(sdl.Color{0,0,0,128})
 	ui.eventBackground.SetBlendMode(sdl.BLENDMODE_BLEND)
 
+	err = mix.OpenAudio(22050, mix.DEFAULT_FORMAT, 2, 4096)
+	if err != nil {
+		panic(err)
+	}
+
+	mus, err := mix.LoadMUS("game-ui-2d/assets/cave_theme.ogg")
+	if err != nil {
+		panic(err)
+	}
+
+	stepBase := "game-ui-2d/assets/stepdirt_"
+	for i := 1; i <= 8; i++ {
+		soundFile := stepBase + strconv.Itoa(i) + ".wav"
+		stepSound, err := mix.LoadWAV(soundFile)
+		if err != nil {
+			panic(err)
+		}
+		ui.sounds.footStep = append(ui.sounds.footStep, stepSound)
+	}
+
+	openDoorSound, err := mix.LoadWAV("game-ui-2d/assets/open_door.ogg")
+	if err != nil {
+		panic(err)
+	}
+	ui.sounds.openDoor = append(ui.sounds.openDoor, openDoorSound)
+
+	stepBase = "game-ui-2d/assets/Mudchute_pig_"
+	for i := 1; i <= 3; i++ {
+		soundFile := stepBase + strconv.Itoa(i) + ".ogg"
+		stepSound, err := mix.LoadWAV(soundFile)
+		if err != nil {
+			panic(err)
+		}
+		ui.sounds.attackingSound = append(ui.sounds.attackingSound, stepSound)
+	}
+	
+	mus.Play(-1)
+
 	return ui
 }
 
@@ -159,6 +211,8 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
+
+	err = mix.Init(mix.INIT_OGG)
 }
 
 func(ui *ui) loadTextureIdx() {
@@ -249,19 +303,24 @@ func(ui *ui) imgFileToTexture(filename string) *sdl.Texture {
 }
 
 func (ui *ui) Draw(level *game.Level) {
+
 	if ui.centerX == -1 && ui.centerY == -1 {
 		ui.centerX = level.Player.X
 		ui.centerY = level.Player.Y
 	}
 
 	if level.Player.X > ui.centerX+ui.cameraLimit {
-		ui.centerX++
+		diff := level.Player.X - (ui.centerX+ui.cameraLimit)
+		ui.centerX += diff
 	} else if level.Player.X < ui.centerX-ui.cameraLimit {
-		ui.centerX--
+		diff := (ui.centerX-ui.cameraLimit) - level.Player.X
+		ui.centerX -= diff
 	} else if level.Player.Y > ui.centerY+ui.cameraLimit {
-		ui.centerY++
+		diff := level.Player.Y - (ui.centerY+ui.cameraLimit)
+		ui.centerY += diff
 	} else if level.Player.Y < ui.centerY-ui.cameraLimit {
-		ui.centerY--
+		diff := (ui.centerY-ui.cameraLimit) - level.Player.Y
+		ui.centerY -= diff
 	}
 
 	offsetX := (ui.winWidth/2) - ui.centerX*32
@@ -371,6 +430,14 @@ func (ui *ui) Run() {
 		select {
 		case newLevel, ok := <-ui.levelChannel:
 			if ok {
+				switch newLevel.LastEvent {
+				case game.Move:
+					playRandomSounds(ui.sounds.footStep,20)
+				case game.OpenDoor:
+					playRandomSounds(ui.openDoor, 75)
+				case game.Attacking:
+					playRandomSounds(ui.attackingSound, 75)
+				}
 				ui.Draw(newLevel)
 			}
 		default:

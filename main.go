@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	game := game.NewGame(1, "game-logic/maps/level1.map")
+	game := game.NewGame(1)
 	for i := 0; i < 1; i++ {
 		go func(i int) {
 			runtime.LockOSThread()
