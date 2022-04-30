@@ -115,6 +115,22 @@ func (ui *ui) CheckInventoryItems(level *game.Level) *game.Items {
 	return nil
 }
 
+func (ui *ui) DrinkPotion(level *game.Level) {
+	if ui.currMouseState.rightButton {
+		mousePos := ui.currMouseState.pos
+		for i, item := range level.Player.Items {
+			if item.Type == game.Potion {
+				itemRect := ui.getInventoryItemRect(i)
+				if itemRect.HasIntersection(&sdl.Rect{int32(mousePos.X), int32(mousePos.Y),1,1}) {
+					level.Player.Items = append(level.Player.Items[:i], level.Player.Items[i+1:]...)
+					level.Player.Character.Hp += int(item.Power)
+					playRandomSounds(ui.burpSound, 100)
+				}
+			}
+		}
+	}
+}
+
 func (ui *ui) CheckBackgroundItems(level *game.Level) *game.Items {
 	if !ui.currMouseState.leftButton && ui.prevMouseState.leftButton {
 		fmt.Println("Clicked, x, y : ", ui.currMouseState.pos)

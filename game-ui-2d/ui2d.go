@@ -294,6 +294,10 @@ func (ui *ui) Run() {
 					playRandomSounds(ui.pickUpItems, 75)
 				case game.Portal:
 					playRandomSounds(ui.enteringPortals, 100)
+				case game.MonsterDeath:
+					playRandomSounds(ui.deathSound, 100)
+				// case game.DrinkPotion:
+				// 	playRandomSounds(ui.burpSound, 100)
 				}
 			}
 		default:
@@ -320,6 +324,7 @@ func (ui *ui) Run() {
 				ui.draggedItem = ui.CheckInventoryItems(newLevel)	
 			}
 			ui.DrawInventory(newLevel)
+			ui.DrinkPotion(newLevel)
 		}
 		ui.renderer.Present()
 

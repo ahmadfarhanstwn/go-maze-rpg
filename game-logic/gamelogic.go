@@ -10,6 +10,8 @@ const (
 	PickUpItems
 	DropItems
 	EquipItems
+	MonsterDeath
+	DrinkPotion
 )
 
 type Game struct {

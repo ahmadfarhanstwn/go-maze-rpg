@@ -106,7 +106,7 @@ func loadLevels() map[string]*Level {
 	player := &Player{}
 	player.Rune = '@'
 	player.Name = "Player"
-	player.Hp = 20000
+	player.Hp = 200
 	player.Strength = 5
 	player.Speed = 1
 	player.Ap = 1
@@ -185,6 +185,12 @@ func loadLevels() map[string]*Level {
 				} else if col == 'h' {
 					t.Rune = Pending
 					level.Items[Pos{x, y}] = append(level.Items[Pos{x, y}], newHelmet(Pos{x, y}))
+				} else if col == 'a' {
+					t.Rune = Pending
+					level.Items[Pos{x, y}] = append(level.Items[Pos{x, y}], newArmour(Pos{x, y}))
+				} else if col == 'p' {
+					t.Rune = Pending
+					level.Items[Pos{x, y}] = append(level.Items[Pos{x, y}], newPotion(Pos{x, y}))
 				} else if col == 'D' {
 					t.Rune = Pending
 					t.OverlayRune = Downstair

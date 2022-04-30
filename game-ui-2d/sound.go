@@ -13,6 +13,8 @@ type sounds struct {
 	attackingSound  []*mix.Chunk
 	pickUpItems     []*mix.Chunk
 	enteringPortals []*mix.Chunk
+	deathSound []*mix.Chunk
+	burpSound []*mix.Chunk
 }
 
 func (ui *ui) initSound() {
@@ -65,6 +67,18 @@ func (ui *ui) initSound() {
 	}
 
 	ui.sounds.enteringPortals = append(ui.sounds.enteringPortals, portalSound)
+
+	deathSound, err := mix.LoadWAV("game-ui-2d/assets/deathr.wav")
+	if err != nil {
+		panic(err)
+	}
+	ui.sounds.deathSound = append(ui.sounds.deathSound, deathSound)
+
+	burpSound, err := mix.LoadWAV("game-ui-2d/assets/burp_02.ogg")
+	if err != nil {
+		panic(err)
+	}
+	ui.sounds.burpSound = append(ui.sounds.burpSound, burpSound)
 	
 	mus.Play(-1)
 }

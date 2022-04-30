@@ -1,6 +1,9 @@
 package game
 
-import "math/rand"
+import (
+	"math/rand"
+	"time"
+)
 
 type Monster struct {
 	Character
@@ -12,16 +15,29 @@ func NewRat(pos Pos) *Monster {
 	if r == 1 {
 		items = append(items, NewSword(pos))
 	}
-	return &Monster{Character{Entity{pos, 'R', "Rat"}, 10, 2, 15, 0, 10, items, nil, nil, nil}}
+	return &Monster{Character{Entity{pos, 'R', "Rat"}, 10, 2, 1, 0, 10, items, nil, nil, nil}}
 }
 
 func NewSpider(pos Pos) *Monster {
+	// dropped item
 	items := make([]*Items, 0)
-	r := rand.Intn(2)
-	if r == 1 {
+	rand.Seed(time.Now().UnixNano())
+	r := rand.Intn(15)
+	switch r {
+	case 1:
+		items = append(items, newArmour(pos))
+	case 2:
 		items = append(items, newHelmet(pos))
+	case 3:
+		items = append(items, newPotion(pos))
+	case 4:
+		items = append(items, NewSword(pos))
+	case 5:
+		items = append(items, NewSword(pos), newArmour(pos))
+	case 6:
+		items = append(items, newHelmet(pos), newPotion(pos))
 	}
-	return &Monster{Character{Entity{pos, 'S', "Spider"}, 15, 5, 2, 0, 10, items, nil, nil, nil}}
+	return &Monster{Character{Entity{pos, 'S', "Spider"}, 15, 5, 1, 0, 10, items, nil, nil, nil}}
 }
 
 func (m *Monster) Update(level *Level) {

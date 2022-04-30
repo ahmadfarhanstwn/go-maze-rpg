@@ -136,6 +136,7 @@ func (game *Game) resolveMovement(pos Pos) {
 		level.LastEvent = Attacking
 		if monster.Character.Hp <= 0 {
 			monster.Dead(level)
+			level.LastEvent = MonsterDeath
 		}
 		if level.Player.Character.Hp <= 0 {
 			panic("You died")
