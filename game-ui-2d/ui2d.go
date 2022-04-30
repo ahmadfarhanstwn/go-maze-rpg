@@ -1,12 +1,8 @@
 package ui2d
 
 import (
-	"bufio"
-	"image/png"
 	"math/rand"
-	"os"
 	"strconv"
-	"strings"
 
 	"github.com/ahmadfarhanstwn/rpg/game-logic"
 	"github.com/veandco/go-sdl2/mix"
@@ -16,25 +12,38 @@ import (
 
 type fontSize int
 
+type UiState int
+
+const (
+	MainUI UiState = iota
+	InventoryUI
+)
+
 const (
 	smallSize fontSize = iota
 	mediumSize
 	largeSize
 )
 
-type sounds struct {
-	footStep []*mix.Chunk 
-	openDoor []*mix.Chunk
-	attackingSound []*mix.Chunk
+const itemSizeRatio = .066
+
+func init() {
+	err := sdl.Init(sdl.INIT_EVERYTHING)
+	if err != nil {
+		panic(err)
+	}
+
+	err = ttf.Init()
+	if err != nil {
+		panic(err)
+	}
+
+	err = mix.Init(mix.INIT_OGG)
 }
 
-func playRandomSounds(chunks []*mix.Chunk, volume int) {
-	r := rand.Intn(len(chunks))
-	chunks[r].Volume(volume)
-	chunks[r].Play(-1,0)
-}
 
 type ui struct {
+	state UiState
 	sounds
 	winWidth int
 	winHeight int
@@ -57,10 +66,18 @@ type ui struct {
 	texMedium map[string]*sdl.Texture
 	texLarge map[string]*sdl.Texture
 	eventBackground *sdl.Texture
+	inventoryBackground *sdl.Texture
+	helmetSlotBackground *sdl.Texture
+	swordSlotBackground *sdl.Texture
+	armourSlotBackground *sdl.Texture
+	draggedItem *game.Items
+	currMouseState *mouseState
+	prevMouseState *mouseState
 }
 
 func NewUi(levelChannel chan *game.Level, inputChannel chan *game.Input) *ui {
 	ui := &ui{}
+	ui.state = MainUI
 	ui.r = rand.New(rand.NewSource(1))
 	ui.levelChannel = levelChannel
 	ui.inputChannel = inputChannel
@@ -82,7 +99,7 @@ func NewUi(levelChannel chan *game.Level, inputChannel chan *game.Input) *ui {
 		panic(err)
 	}
 
-	sdl.SetHint(sdl.HINT_RENDER_SCALE_QUALITY, "1")
+	// sdl.SetHint(sdl.HINT_RENDER_SCALE_QUALITY, "1")
 
 	ui.imageAtlas = ui.imgFileToTexture("game-ui-2d/assets/tiles.png")
 
@@ -115,191 +132,21 @@ func NewUi(levelChannel chan *game.Level, inputChannel chan *game.Input) *ui {
 	ui.eventBackground = ui.GetSinglePixelTex(sdl.Color{0,0,0,128})
 	ui.eventBackground.SetBlendMode(sdl.BLENDMODE_BLEND)
 
-	err = mix.OpenAudio(22050, mix.DEFAULT_FORMAT, 2, 4096)
-	if err != nil {
-		panic(err)
-	}
+	ui.inventoryBackground = ui.GetSinglePixelTex(sdl.Color{85,52,165,128})
+	ui.inventoryBackground.SetBlendMode(sdl.BLENDMODE_BLEND)
 
-	mus, err := mix.LoadMUS("game-ui-2d/assets/cave_theme.ogg")
-	if err != nil {
-		panic(err)
-	}
+	ui.helmetSlotBackground = ui.GetSinglePixelTex(sdl.Color{0,0,0,128})
+	ui.helmetSlotBackground.SetBlendMode(sdl.BLENDMODE_BLEND)
 
-	stepBase := "game-ui-2d/assets/stepdirt_"
-	for i := 1; i <= 8; i++ {
-		soundFile := stepBase + strconv.Itoa(i) + ".wav"
-		stepSound, err := mix.LoadWAV(soundFile)
-		if err != nil {
-			panic(err)
-		}
-		ui.sounds.footStep = append(ui.sounds.footStep, stepSound)
-	}
+	ui.swordSlotBackground = ui.GetSinglePixelTex(sdl.Color{0,0,0,128})
+	ui.swordSlotBackground.SetBlendMode(sdl.BLENDMODE_BLEND)
 
-	openDoorSound, err := mix.LoadWAV("game-ui-2d/assets/open_door.ogg")
-	if err != nil {
-		panic(err)
-	}
-	ui.sounds.openDoor = append(ui.sounds.openDoor, openDoorSound)
+	ui.armourSlotBackground = ui.GetSinglePixelTex(sdl.Color{0,0,0,128})
+	ui.armourSlotBackground.SetBlendMode(sdl.BLENDMODE_BLEND)
 
-	stepBase = "game-ui-2d/assets/Mudchute_pig_"
-	for i := 1; i <= 3; i++ {
-		soundFile := stepBase + strconv.Itoa(i) + ".ogg"
-		stepSound, err := mix.LoadWAV(soundFile)
-		if err != nil {
-			panic(err)
-		}
-		ui.sounds.attackingSound = append(ui.sounds.attackingSound, stepSound)
-	}
-	
-	mus.Play(-1)
+	ui.initSound()
 
 	return ui
-}
-
-func (ui *ui) stringToFont(s string, size fontSize, color sdl.Color) *sdl.Texture {
-	var font *ttf.Font
-
-	switch size {
-	case smallSize:
-		tex, exists := ui.texSmall[s]
-		if exists {
-			return tex
-		}
-		font = ui.smallFont
-	case mediumSize:
-		tex, exists := ui.texMedium[s]
-		if exists {
-			return tex
-		}
-		font = ui.mediumFont
-	case largeSize:
-		tex, exists := ui.texLarge[s]
-		if exists {
-			return tex
-		}
-		font = ui.largeFont
-	}
-
-	fontSurface, err := font.RenderUTF8Blended(s, color)
-	if err != nil {
-		panic(err)
-	}
-
-	fontTexture, err := ui.renderer.CreateTextureFromSurface(fontSurface)
-	if err != nil {
-		panic(err)
-	}
-
-	if size == smallSize {
-		ui.texSmall[s] = fontTexture
-	} else if size == mediumSize {
-		ui.texMedium[s] = fontTexture
-	} else {
-		ui.texLarge[s] = fontTexture
-	}
-
-	return fontTexture
-}
-
-func init() {
-	err := sdl.Init(sdl.INIT_EVERYTHING)
-	if err != nil {
-		panic(err)
-	}
-
-	err = ttf.Init()
-	if err != nil {
-		panic(err)
-	}
-
-	err = mix.Init(mix.INIT_OGG)
-}
-
-func(ui *ui) loadTextureIdx() {
-	ui.textureIndex = make(map[rune][]sdl.Rect)
-
-	infile, err := os.Open("game-ui-2d/assets/atlas_index.txt")
-	if err != nil {
-		panic(err)
-	}
-	defer infile.Close()
-
-	scanner := bufio.NewScanner(infile)
-	for scanner.Scan() {
-		line := scanner.Text()
-		line = strings.TrimSpace(line)
-		tileRune := rune(line[0])
-		xy := line[1:]
-		splitXY := strings.Split(xy, ",")
-
-		x, err := strconv.ParseInt(strings.TrimSpace(splitXY[0]),10,64)
-		if err != nil {
-			panic(err)
-		}
-		y, err := strconv.ParseInt(strings.TrimSpace(splitXY[1]),10,64)
-		if err != nil {
-			panic(err)
-		}
-		count, err := strconv.ParseInt(strings.TrimSpace(splitXY[2]),10,64)
-		if err != nil {
-			panic(err)
-		}
-
-		var rects []sdl.Rect
-		for i := 0; i < int(count); i++ {
-			rect := sdl.Rect{int32(x*32),int32(y*32),32,32}
-			rects = append(rects, rect)
-			x++
-			if x > 63 {
-				x = 0
-				y++
-			}
-		}
-		
-		ui.textureIndex[tileRune] = rects
-	}
-}
-
-func(ui *ui) imgFileToTexture(filename string) *sdl.Texture {
-	infile, err := os.Open(filename)
-	if err != nil {
-		panic(err)
-	}
-	defer infile.Close()
-
-	img, err := png.Decode(infile)
-	if err != nil {
-		panic(err)
-	}
-
-	w := img.Bounds().Max.X
-	h := img.Bounds().Max.Y
-
-	pixels := make([]byte, w*h*4)
-	bIndex := 0
-	for y := 0; y < h; y++ {
-		for x := 0; x < w; x++ {
-			r, g, b, a := img.At(x, y).RGBA()
-			pixels[bIndex] = byte(r / 256)
-			bIndex++
-			pixels[bIndex] = byte(g / 256)
-			bIndex++
-			pixels[bIndex] = byte(b / 256)
-			bIndex++
-			pixels[bIndex] = byte(a / 256)
-			bIndex++
-		}
-	}
-	tex, err := ui.renderer.CreateTexture(sdl.PIXELFORMAT_ABGR8888, sdl.TEXTUREACCESS_STREAMING, int32(w), int32(h))
-	if err != nil {
-		panic(err)
-	}
-	tex.Update(nil, pixels, w*4)
-	err = tex.SetBlendMode(sdl.BLENDMODE_BLEND)
-	if err != nil {
-		panic(err)
-	}
-	return tex
 }
 
 func (ui *ui) Draw(level *game.Level) {
@@ -358,8 +205,21 @@ func (ui *ui) Draw(level *game.Level) {
 	ui.imageAtlas.SetColorMod(255,255,255)
 
 	for pos, monster := range level.Monsters {
-		monsterRect := ui.textureIndex[monster.Rune][0]
-		ui.renderer.Copy(ui.imageAtlas, &monsterRect, &sdl.Rect{int32(pos.X*32)+int32(offsetX),int32(pos.Y*32)+int32(offsetY),32,32})
+		if level.Map[pos.Y][pos.X].Visible {
+			monsterRect := ui.textureIndex[monster.Rune][0]
+			ui.renderer.Copy(ui.imageAtlas, &monsterRect, &sdl.Rect{int32(pos.X*32)+int32(offsetX),int32(pos.Y*32)+int32(offsetY),32,32})
+		}
+	}
+
+	ui.r.Seed(1)
+	for pos, items := range level.Items {
+		if level.Map[pos.Y][pos.X].Visible {
+			for _, item := range items {
+				r := ui.r.Intn(len(ui.textureIndex[item.Rune]))
+				itemRect := ui.textureIndex[item.Rune][r]
+				ui.renderer.Copy(ui.imageAtlas, &itemRect, &sdl.Rect{int32(pos.X*32)+int32(offsetX),int32(pos.Y*32)+int32(offsetY),32,32})
+			}
+		}
 	}
 
 	playerSrc := ui.textureIndex['@'][0]
@@ -388,33 +248,22 @@ func (ui *ui) Draw(level *game.Level) {
 	}
 	ui.renderer.Copy(hp, nil, &sdl.Rect{0,0,w,h})
 
-	ui.renderer.Present()
+	// inventoryStart := int32(float64(ui.winWidth)*.4)
+	// inventoryWidth := int32(ui.winWidth)-inventoryStart
+	// // itemSize := int32(itemSizeRatio * float32(ui.winWidth))
+	// ui.renderer.Copy(ui.inventoryBackground, nil, &sdl.Rect{inventoryStart, int32(ui.winHeight), inventoryWidth, int32(32)})
+
+	items := level.Player.Character.Items
+	for i, item := range items {
+		itemRect := ui.textureIndex[item.Rune][0]
+		ui.renderer.Copy(ui.imageAtlas, &itemRect, ui.getBackgroundRect(i))
+	}
 	// sdl.Delay(16)
 }
 
-func (ui *ui) keyPressedOnce(key uint8) bool {
-	return ui.keyboardState[key] == 1 && ui.prevKeyboardState[key] == 0
-}
-
-func (ui *ui) keyPressed(key uint8) bool {
-	return ui.keyboardState[key] == 0 && ui.prevKeyboardState[key] == 1
-}
-
-func (ui *ui) GetSinglePixelTex(color sdl.Color) *sdl.Texture {
-	tex, _ := ui.renderer.CreateTexture(sdl.PIXELFORMAT_ABGR8888, sdl.TEXTUREACCESS_STATIC, 1, 1)
-	// if err != nil {
-	// 	panic(err)
-	// }
-	pixels := make([]byte, 4)
-	pixels[0] = color.R
-	pixels[1] = color.G
-	pixels[2] = color.B
-	pixels[3] = color.A
-	tex.Update(nil, pixels, 4)
-	return tex
-}
-
 func (ui *ui) Run() {
+	ui.prevMouseState = getMouseState()
+	var newLevel *game.Level
 	for {
 		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
 			switch e := event.(type) {
@@ -427,8 +276,12 @@ func (ui *ui) Run() {
 			}
 		}
 
+		ui.currMouseState = getMouseState()
+		var input game.Input
+		var ok bool
+
 		select {
-		case newLevel, ok := <-ui.levelChannel:
+		case newLevel, ok = <-ui.levelChannel:
 			if ok {
 				switch newLevel.LastEvent {
 				case game.Move:
@@ -437,41 +290,47 @@ func (ui *ui) Run() {
 					playRandomSounds(ui.openDoor, 75)
 				case game.Attacking:
 					playRandomSounds(ui.attackingSound, 75)
+				case game.PickUpItems, game.DropItems:
+					playRandomSounds(ui.pickUpItems, 75)
+				case game.Portal:
+					playRandomSounds(ui.enteringPortals, 100)
 				}
-				ui.Draw(newLevel)
 			}
 		default:
 		}
 
-		if sdl.GetKeyboardFocus() == ui.window || sdl.GetMouseFocus() == ui.window {
-			var input game.Input
-			if ui.keyPressedOnce(sdl.SCANCODE_UP) || ui.keyPressedOnce(sdl.SCANCODE_W) {
-				input.Input = game.Up
-			}
-			if ui.keyPressedOnce(sdl.SCANCODE_LEFT) || ui.keyPressedOnce(sdl.SCANCODE_A) {
-				input.Input = game.Left
-			}
-			if ui.keyPressedOnce(sdl.SCANCODE_RIGHT) || ui.keyPressedOnce(sdl.SCANCODE_D) {
-				input.Input = game.Right
-			}
-			if ui.keyPressedOnce(sdl.SCANCODE_DOWN) || ui.keyPressedOnce(sdl.SCANCODE_S) {
-				input.Input = game.Down
-			}
-			if ui.keyPressedOnce(sdl.SCANCODE_ESCAPE) {
-				input.Input = game.Quit
-			}
-			// if (ui.keyboardState[sdl.SCANCODE_Q] == 1 && ui.prevKeyboardState[sdl.SCANCODE_Q] == 0) {
-			// 	input.Input = game.Search
-			// }
+		ui.Draw(newLevel)
+		if ui.state == InventoryUI {
+			if ui.draggedItem != nil && !ui.currMouseState.leftButton && ui.prevMouseState.leftButton {
+				item := ui.CheckDroppedItem()
+				if item != nil {
+					input.Input = game.DropItem
+					input.Item = item
+					ui.draggedItem = nil 
+				}
 
-			for i := range ui.keyboardState {
-				ui.prevKeyboardState[i] = ui.keyboardState[i]
+				item = ui.CheckEquippedItem()
+				if item != nil {
+					input.Input = game.EquipItem
+					input.Item = item
+					ui.draggedItem = nil
+				}
 			}
-
-			if input.Input != game.None {
-				ui.inputChannel <- &input
+			if !ui.currMouseState.leftButton || ui.draggedItem == nil {
+				ui.draggedItem = ui.CheckInventoryItems(newLevel)	
 			}
+			ui.DrawInventory(newLevel)
 		}
+		ui.renderer.Present()
+
+		item := ui.CheckBackgroundItems(newLevel)
+		if item != nil {
+			input.Input = game.TakeItem
+			input.Item = item
+		}
+
+		ui.checkInput(input)
+		ui.prevMouseState = ui.currMouseState
 		sdl.Delay(10)
 	}
 }
