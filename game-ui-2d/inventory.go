@@ -25,8 +25,15 @@ func (ui *ui) getInventoryItemRect(i int) *sdl.Rect {
 func(ui *ui) DrawInventory(level *game.Level) {
 	invRect := ui.getInventoryRect()
 	playerRect := ui.textureIndex[level.Player.Rune][0]
+	helperX := (int32(float32(invRect.W)*1.01)-invRect.W)/2
+	helperY := (int32(float32(invRect.H)*1.01)-invRect.H)/2
+	// helperCharX := (int32((float32(invRect.W)/1.25)*1.01)-invRect.W)/2
+	// helperCharY := (int32((float32(invRect.H)/2.25)*1.01)-invRect.H)/2
+	ui.renderer.Copy(ui.inventoryBorder, nil, &sdl.Rect{invRect.X-helperX,invRect.Y-helperY,int32(float32(invRect.W)*1.01),int32(float32(invRect.H)*1.01)})
 	ui.renderer.Copy(ui.inventoryBackground, nil, &sdl.Rect{invRect.X,invRect.Y,invRect.W,invRect.H})
-	ui.renderer.Copy(ui.imageAtlas, &playerRect, &sdl.Rect{int32(float32(invRect.X)*1.75), invRect.Y, invRect.W/2, invRect.H/2})
+	// ui.renderer.Copy(ui.characterBorder, nil, &sdl.Rect{int32(float32(invRect.X)*1.25)-helperCharX, int32(float32(invRect.Y)*1.15)-helperCharY, int32((float32(invRect.W)/1.25)*1.01), int32((float32(invRect.H)/2.25)*1.01)})
+	// ui.renderer.Copy(ui.characterSlotBackground, nil, &sdl.Rect{int32(float32(invRect.X)*1.25), int32(float32(invRect.Y)*1.15), int32(float32(invRect.W)/1.25), int32(float32(invRect.H)/2.25)})
+	ui.renderer.Copy(ui.imageAtlas, &playerRect, &sdl.Rect{int32(float32(invRect.X)*1.65), int32(float32(invRect.Y)*1.25), int32(float32(invRect.W)/1.75), int32(float32(invRect.H)/1.75)})
 	ui.renderer.Copy(ui.helmetSlotBackground, nil, ui.getHelmetSlotRect())
 	if level.Player.Helmet != nil {
 		ui.renderer.Copy(ui.imageAtlas, &ui.textureIndex[level.Player.Helmet.Rune][0], ui.getHelmetSlotRect())
@@ -62,7 +69,7 @@ func (ui *ui) CheckEquippedItem() *game.Items {
 		if r.HasIntersection(&sdl.Rect{int32(ui.currMouseState.pos.X), int32(ui.currMouseState.pos.Y), 1, 1}) {
 			return ui.draggedItem
 		}
-	} else {
+	} else if ui.draggedItem.Type == game.Helmet {
 		r := ui.getHelmetSlotRect()
 		if r.HasIntersection(&sdl.Rect{int32(ui.currMouseState.pos.X), int32(ui.currMouseState.pos.Y), 1, 1}) {
 			return ui.draggedItem

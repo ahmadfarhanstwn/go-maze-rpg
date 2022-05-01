@@ -20,13 +20,16 @@ type Tile struct {
 
 const (
 	StoneWall rune = '#'
+	HellWall = '&'
 	DirtFloor = '.'
+	HellFloor = ','
 	ClosedDoor = '|'
 	OpenedDoor = '/'
 	Blank = 0
 	Pending = -1
 	Upstair = 'U'
 	Downstair = 'D'
+	Coin = 'C'
 )
 
 type Level struct {
@@ -39,6 +42,7 @@ type Level struct {
 	Items     map[Pos][]*Items
 	LastEvent GameEvent
 	Debug     map[Pos]bool
+	Coins int
 }
 
 type LevelPos struct {
@@ -106,7 +110,7 @@ func loadLevels() map[string]*Level {
 	player := &Player{}
 	player.Rune = '@'
 	player.Name = "Player"
-	player.Hp = 200
+	player.Hp = 150
 	player.Strength = 5
 	player.Speed = 1
 	player.Ap = 1
@@ -161,8 +165,12 @@ func loadLevels() map[string]*Level {
 					t.Rune = Blank
 				} else if col == '#' {
 					t.Rune = StoneWall
+				} else if col == '&' {
+					t.Rune = HellWall
 				} else if col == '.' {
 					t.Rune = DirtFloor
+				} else if col == ',' {
+					t.Rune = HellFloor
 				} else if col == '|' {
 					t.OverlayRune = ClosedDoor
 					t.Rune = Pending
@@ -171,8 +179,13 @@ func loadLevels() map[string]*Level {
 					t.OverlayRune = OpenedDoor
 				} else if col == '@' {
 					t.Rune = Pending
-					level.Player.X = x
-					level.Player.Y = y
+					if level.Player.Pos.X == 0 && level.Player.Pos.Y == 0 {
+						level.Player.Pos.X = x
+						level.Player.Pos.Y = y
+					}
+				} else if col == 'G' {
+					t.Rune = Pending
+					level.Monsters[Pos{x, y}] = NewGhost(Pos{x, y})
 				} else if col == 'R' {
 					t.Rune = Pending
 					level.Monsters[Pos{x, y}] = NewRat(Pos{x, y})
@@ -197,6 +210,9 @@ func loadLevels() map[string]*Level {
 				} else if col == 'U' {
 					t.Rune = Pending
 					t.OverlayRune = Upstair
+				} else if col == 'C' {
+					t.Rune = Pending
+					t.OverlayRune = Coin
 				} else {
 					panic("the character that you put in map is invalid")
 				}
@@ -249,8 +265,8 @@ func (level *Level) bfsFloor(pos Pos) rune {
 	for len(queue) > 0 {
 		curr := queue[0]
 		currTile := level.Map[curr.Y][curr.X]
-		if currTile.Rune == DirtFloor {
-			return DirtFloor
+		if currTile.Rune == DirtFloor || currTile.Rune == HellFloor {
+			return currTile.Rune
 		}
 		queue = queue[1:]
 		for _, adj := range getNeighbour(level, curr) {

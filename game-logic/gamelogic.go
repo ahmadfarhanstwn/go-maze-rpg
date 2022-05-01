@@ -12,6 +12,7 @@ const (
 	EquipItems
 	MonsterDeath
 	DrinkPotion
+	FailedPortal
 )
 
 type Game struct {

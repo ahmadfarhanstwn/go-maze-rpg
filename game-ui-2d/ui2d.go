@@ -66,7 +66,10 @@ type ui struct {
 	texMedium map[string]*sdl.Texture
 	texLarge map[string]*sdl.Texture
 	eventBackground *sdl.Texture
+	inventoryBorder *sdl.Texture
 	inventoryBackground *sdl.Texture
+	characterBorder *sdl.Texture
+	characterSlotBackground *sdl.Texture
 	helmetSlotBackground *sdl.Texture
 	swordSlotBackground *sdl.Texture
 	armourSlotBackground *sdl.Texture
@@ -132,16 +135,25 @@ func NewUi(levelChannel chan *game.Level, inputChannel chan *game.Input) *ui {
 	ui.eventBackground = ui.GetSinglePixelTex(sdl.Color{0,0,0,128})
 	ui.eventBackground.SetBlendMode(sdl.BLENDMODE_BLEND)
 
-	ui.inventoryBackground = ui.GetSinglePixelTex(sdl.Color{85,52,165,128})
+	ui.inventoryBorder = ui.GetSinglePixelTex(sdl.Color{149,1,1,255})
+	ui.inventoryBorder.SetBlendMode(sdl.BLENDMODE_BLEND)
+
+	ui.inventoryBackground = ui.GetSinglePixelTex(sdl.Color{0,0,0,255})
 	ui.inventoryBackground.SetBlendMode(sdl.BLENDMODE_BLEND)
 
-	ui.helmetSlotBackground = ui.GetSinglePixelTex(sdl.Color{0,0,0,128})
+	ui.characterBorder = ui.GetSinglePixelTex(sdl.Color{149,1,1,255})
+	ui.characterBorder.SetBlendMode(sdl.BLENDMODE_BLEND)
+
+	ui.characterSlotBackground = ui.GetSinglePixelTex(sdl.Color{43,43,43,255})
+	ui.characterSlotBackground.SetBlendMode(sdl.BLENDMODE_BLEND)
+
+	ui.helmetSlotBackground = ui.GetSinglePixelTex(sdl.Color{255,0,0,128})
 	ui.helmetSlotBackground.SetBlendMode(sdl.BLENDMODE_BLEND)
 
-	ui.swordSlotBackground = ui.GetSinglePixelTex(sdl.Color{0,0,0,128})
+	ui.swordSlotBackground = ui.GetSinglePixelTex(sdl.Color{255,0,0,128})
 	ui.swordSlotBackground.SetBlendMode(sdl.BLENDMODE_BLEND)
 
-	ui.armourSlotBackground = ui.GetSinglePixelTex(sdl.Color{0,0,0,128})
+	ui.armourSlotBackground = ui.GetSinglePixelTex(sdl.Color{255,0,0,128})
 	ui.armourSlotBackground.SetBlendMode(sdl.BLENDMODE_BLEND)
 
 	ui.initSound()
@@ -247,6 +259,22 @@ func (ui *ui) Draw(level *game.Level) {
 		panic(err)
 	}
 	ui.renderer.Copy(hp, nil, &sdl.Rect{0,0,w,h})
+
+	coins := ui.stringToFont("Coins : "+strconv.FormatInt(int64(level.Coins),10) + " /5",mediumSize, sdl.Color{255,255,255,0})
+	_,_,w,h,err = hp.Query()
+	if err != nil {
+		panic(err)
+	}
+	ui.renderer.Copy(coins, nil, &sdl.Rect{int32(float32(ui.winWidth)/1.5),0,w,h})
+
+	if level.LastEvent == game.FailedPortal {
+		reminder := ui.stringToFont("You haven't collected 5 coins. Find more coins to proceed to the next level",mediumSize, sdl.Color{255,255,255,0})
+		_,_,w,h,err = reminder.Query()
+		if err != nil {
+			panic(err)
+		}
+		ui.renderer.Copy(reminder, nil, &sdl.Rect{0,int32(float32(ui.winHeight)/2),w,h})
+	}
 
 	// inventoryStart := int32(float64(ui.winWidth)*.4)
 	// inventoryWidth := int32(ui.winWidth)-inventoryStart

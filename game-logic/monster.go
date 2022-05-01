@@ -10,16 +10,22 @@ type Monster struct {
 }
 
 func NewRat(pos Pos) *Monster {
-	items := make([]*Items, 0)
-	r := rand.Intn(2)
-	if r == 1 {
-		items = append(items, NewSword(pos))
-	}
-	return &Monster{Character{Entity{pos, 'R', "Rat"}, 10, 2, 1, 0, 10, items, nil, nil, nil}}
+	items := getItemDropped(pos)
+	return &Monster{Character{Entity{pos, 'R', "Rat"}, 10, 3, 1, 0, 10, items, nil, nil, nil}}
 }
 
 func NewSpider(pos Pos) *Monster {
 	// dropped item
+	items := getItemDropped(pos)
+	return &Monster{Character{Entity{pos, 'S', "Spider"}, 15, 5, 1, 0, 10, items, nil, nil, nil}}
+}
+
+func NewGhost(pos Pos) *Monster {
+	items := getItemDropped(pos)
+	return &Monster{Character{Entity{pos, 'G', "Ghost"}, 20, 10, 1, 0, 10, items, nil, nil, nil}}
+}
+
+func getItemDropped(pos Pos) []*Items {
 	items := make([]*Items, 0)
 	rand.Seed(time.Now().UnixNano())
 	r := rand.Intn(15)
@@ -37,7 +43,7 @@ func NewSpider(pos Pos) *Monster {
 	case 6:
 		items = append(items, newHelmet(pos), newPotion(pos))
 	}
-	return &Monster{Character{Entity{pos, 'S', "Spider"}, 15, 5, 1, 0, 10, items, nil, nil, nil}}
+	return items
 }
 
 func (m *Monster) Update(level *Level) {

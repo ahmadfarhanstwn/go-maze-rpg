@@ -3,8 +3,10 @@
 // ADD MORE MAPS
 // ADD MORE ITEMS
 // ADD MORE TILES
+// ADJUST PLAYER AND MONSTERS STATS
 // IMPROVE UI DESIGN FOR INVENTORY
-// ADD MORE GAMEPLAY
+// ADD MORE GAMEPLAY (Player need to collect 5 coins every level before going forward to the next level)
+// ADD TIMER (Given the timer for player to finish every level)
 
 package main
 

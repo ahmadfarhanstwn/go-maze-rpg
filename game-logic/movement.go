@@ -18,8 +18,8 @@ const (
 )
 
 type Input struct {
-	Input InputState
-	Item *Items
+	Input        InputState
+	Item         *Items
 	LevelChannel chan *Level
 }
 
@@ -50,7 +50,7 @@ func (level *Level) MoveItem(itemToMove *Items, character *Character) {
 			return
 		}
 	}
-	panic("Tried to move an item we were not on top")	
+	panic("Tried to move an item we were not on top")
 }
 
 func Equip(itemToEquip *Items, character *Character) {
@@ -69,7 +69,7 @@ func Equip(itemToEquip *Items, character *Character) {
 	}
 }
 
-func isClosedDoor(level *Level, x, y int) bool{
+func isClosedDoor(level *Level, x, y int) bool {
 	if x < 0 || x >= int(len(level.Map[0])) || y < 0 || y >= int(len(level.Map)) {
 		return false
 	}
@@ -79,25 +79,25 @@ func isClosedDoor(level *Level, x, y int) bool{
 func canWalk(level *Level, x, y int) bool {
 	if x < 0 || x >= int(len(level.Map[0])) || y < 0 || y >= int(len(level.Map)) {
 		return false
-	} 
+	}
 	switch level.Map[y][x].Rune {
-	case StoneWall, Blank:
+	case StoneWall, HellWall, Blank:
 		return false
 	}
 	switch level.Map[y][x].OverlayRune {
 	case ClosedDoor:
 		return false
 	}
-	_, exist := level.Monsters[Pos{x,y}]
+	_, exist := level.Monsters[Pos{x, y}]
 	return !exist
 }
 
 func canSee(level *Level, x, y int) bool {
 	if x < 0 || x >= int(len(level.Map[0])) || y < 0 || y >= int(len(level.Map)) {
 		return false
-	} 
+	}
 	switch level.Map[y][x].Rune {
-	case StoneWall, Blank:
+	case StoneWall, HellWall, Blank:
 		return false
 	}
 	switch level.Map[y][x].OverlayRune {
@@ -113,20 +113,24 @@ func (game *Game) move(to Pos) {
 	levelandPos := level.Portals[to]
 	level.LastEvent = Move
 	if levelandPos != nil {
-		level.LastEvent = Portal
-		game.CurrentLevel = levelandPos.Level
-		game.CurrentLevel.Player.Pos = levelandPos.Pos
-		level.lineOfSight()
+		if level.Coins >= 5 {
+			level.LastEvent = Portal
+			game.CurrentLevel = levelandPos.Level
+			game.CurrentLevel.Player.Pos = levelandPos.Pos
+			level.lineOfSight()
+		} else {
+			level.LastEvent = FailedPortal
+		}
 	} else {
-		player.Pos = to	
- 		for y := range level.Map {
+		player.Pos = to
+		for y := range level.Map {
 			for x := range level.Map[y] {
 				level.Map[y][x].Visible = false
 			}
 		}
 		level.lineOfSight()
 	}
-} 
+}
 
 func (game *Game) resolveMovement(pos Pos) {
 	level := game.CurrentLevel
@@ -143,27 +147,31 @@ func (game *Game) resolveMovement(pos Pos) {
 		}
 	} else if canWalk(level, pos.X, pos.Y) {
 		game.move(pos) // todo
+		if level.Map[pos.Y][pos.X].OverlayRune == Coin {
+			level.Coins++
+			level.Map[pos.Y][pos.X].OverlayRune = Blank
+		}
 	} else if isClosedDoor(level, pos.X, pos.Y) {
 		level.Map[pos.Y][pos.X].OverlayRune = OpenedDoor
 		level.lineOfSight()
 		level.LastEvent = OpenDoor
 	}
-} 
+}
 
 func (game *Game) handleInput(input *Input) {
 	level := game.CurrentLevel
 	switch input.Input {
-	case Up :
-		to := Pos{level.Player.X,level.Player.Y-1}
+	case Up:
+		to := Pos{level.Player.X, level.Player.Y - 1}
 		game.resolveMovement(to) //todo
-	case Left :
-		to := Pos{level.Player.X-1,level.Player.Y}
+	case Left:
+		to := Pos{level.Player.X - 1, level.Player.Y}
 		game.resolveMovement(to)
-	case Right :
-		to := Pos{level.Player.X+1,level.Player.Y}
+	case Right:
+		to := Pos{level.Player.X + 1, level.Player.Y}
 		game.resolveMovement(to)
-	case Down :
-		to := Pos{level.Player.X,level.Player.Y+1}
+	case Down:
+		to := Pos{level.Player.X, level.Player.Y + 1}
 		game.resolveMovement(to)
 	case TakeAllItems:
 		for _, item := range level.Items[level.Player.Pos] {
